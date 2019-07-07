@@ -154,8 +154,15 @@ altergit() {
 		touch ./.commit
 		read -p 'Directory tujuan (wajib diisi) [/home/foo]: ' dirDest
 		dirDest=${dirDest:-/home/foo}
+		read -p 'Host tujuan (wajib diisi) [localhost]: ' hostDest
+		hostDest=${hostDest:-localhost}
+		read -p 'Port tujuan (wajib diisi) [22]: ' portDest
+		portDest=${portDest:-22}
 		echo '#!/bin/bash' > .altergitconfig
 		echo "dirDest='$dirDest'" >> .altergitconfig
+		echo "hostDest='$hostDest'" >> .altergitconfig
+		echo "portDest='$hostDest'" >> .altergitconfig
+		
 		printf "Menginisialisasi project ini\n"
 	 	;;
      *)
