@@ -35,14 +35,8 @@ syncit() {
 	source .altergitconfig
 	# Membaca inputan string username
 	read -p 'Username: ' uservar
-	# Membaca inputan string alamat komputer yang remote
-	read -p 'Alamat server (domain/ip publik): ' useraddr
-	# Membaca default port ssh yang digunakan
-	# secara default isinya yaitu 22
-	read -p 'Port SSH [22]: ' userport
-	userport=${userport:-22}
 	# Melakukab singkronisasi
-	rsync -av -e "ssh -p $userport" --update --exclude-from=.ignore --files-from=.queue --recursive ./ $uservar'@'$useraddr':'$dirDest
+	rsync -av -e "ssh -p $portDest" --update --exclude-from=.ignore --files-from=.queue --recursive ./ $uservar'@'$hostDest':'$dirDest
 	# Melakukan pengaturen ulang
 	resetList
 }
@@ -95,24 +89,39 @@ altergit() {
 		;;
 	 # Menghapus file dari antrian
 	 checkout)
+		if configIsReady 
+		then
 	    	sed -i "/\b\($2\)\b/d" .queue
+	    fi
 	 	;;
 	 # Menulis pesan komitmen
 	 commit)
-		if [ $2 == '-m' ]; 
-		then
-			echo $3 >> .commit
+		if configIsReady 
+			then
+			if [ $2 == '-m' ]; 
+			then
+				echo $3 >> .commit
+			else
+				echo 'Opsi tidak dikenal'
+			fi
 		else
-			echo 'Opsi tidak dikenal'
+			printf "File .commit tidak ada, lakukan \n"
+			printf "${bold}altergit init ${normal}\n\n"
 		fi
 	    ;;
 	 # Melakukan proses pengiriman
 	 push)
-		if [ $2 == 'this' ]; 
+		if configIsReady 
 		then
-			syncit
+			if [ $2 == 'this' ]; 
+			then
+				syncit
+			else
+				echo 'Opsi tidak dikenal'
+			fi
 		else
-			echo 'Opsi tidak dikenal'
+			printf "File .commit tidak ada, lakukan \n"
+			printf "${bold}altergit init ${normal}\n\n"
 		fi
 	    ;;
 	 # set list
@@ -161,7 +170,7 @@ altergit() {
 		echo '#!/bin/bash' > .altergitconfig
 		echo "dirDest='$dirDest'" >> .altergitconfig
 		echo "hostDest='$hostDest'" >> .altergitconfig
-		echo "portDest='$hostDest'" >> .altergitconfig
+		echo "portDest='$portDest'" >> .altergitconfig
 		
 		printf "Menginisialisasi project ini\n"
 	 	;;
