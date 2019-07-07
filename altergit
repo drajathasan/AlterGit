@@ -1,0 +1,167 @@
+#!/bin/bash
+# 
+# AlterGit v0.1.0
+#
+# Copyright 2019 Drajat Hasan (drajathasan20@gmail.com) 
+#
+# Merupakan sebuah perkakas pembantu seorang pemrogram untuk mensingkronkan pekerjaan
+# pada komputer lokalnya dengan komputer yang diremote. Prinsip kerja dari AlterGit
+# mirip seperti layaknya git. Namun, perkakas ini berkerja dengan ketergantungan
+# tool yang lain seperti rsync, ssh, ls, read, diff dll, yang intinya digunakan
+# keadaan insidentil ketika komputer remote memiliki aturan yang cukup ketat
+# dan tidak menyediakan perkakas git atau koneksi dengan protocol UDP(DNS)
+# di blokir untuk akses dari komputer remote ke Internet.
+#
+# Lisensi dari skrip dibawah ini menggunakan GPL v3
+
+# Set variabel
+bold=$(tput bold)
+normal=$(tput sgr0)
+
+# Fungsi setUpdate
+# digunakan untuk mengatur ulang beberapa file
+resetList() {
+	# Sama kan isi file .list dengan .list2 karena sudah dijalankan opsi push
+	ls -R ./ > .list
+	ls -R ./ > .list2
+	# Kosongkan antrian .queue
+	echo "" > .queue
+}
+
+# Fungsi syncit
+# digunakan untk mengsingkronkan file-file yang berada di komputer lokal
+# menu komputer remote
+syncit() {
+	source .altergitconfig
+	# Membaca inputan string username
+	read -p 'Username: ' uservar
+	# Membaca inputan string alamat komputer yang remote
+	read -p 'Alamat server (domain/ip publik): ' useraddr
+	# Membaca default port ssh yang digunakan
+	# secara default isinya yaitu 22
+	read -p 'Port SSH [22]: ' userport
+	userport=${userport:-22}
+	# Melakukab singkronisasi
+	rsync -av -e "ssh -p $userport" --update --exclude-from=.ignore --files-from=.queue --recursive ./ $uservar'@'$useraddr':'$dirDest
+	# Melakukan pengaturen ulang
+	resetList
+}
+
+# Fungsi configReady
+# digunakan untuk mengetahui apakah file .alterConfig tersedia atau tidak
+configIsReady() {
+	if [ -f "./.altergitconfig" ]; then
+		true
+	else 
+		false
+	fi
+}
+
+# Fungsi isExist
+# digunakan untuk mengetahui apakah suatu file yang dibutuhkan tersedia atau tidak
+isExist()
+{
+	if [ -f $1 ]; then
+		true
+	elif [ -d $1 ]; then
+		true
+	else
+		false
+	fi
+}
+
+# Fungsi utama AlterGit
+
+altergit() {
+	case $1 in
+	 # Menambahkan file kedalam antrian
+	 add)
+		if isExist $2
+		then
+	    	echo $2 >> .queue
+	    else
+	    	echo 'File ' $3 'tidak ada.'
+	    fi
+		;;
+	 # Menambahkan file kedalam antrian file-file yang tidak di singkronkan
+	 addignore)
+		if isExist .ignore
+		then
+			echo $2 >> .ignore
+		else
+			printf "File .ignore tidak ada, lakukan \n"
+			printf "${bold}altergit init ${normal}\n\n"
+		fi
+		;;
+	 # Menghapus file dari antrian
+	 checkout)
+	    	sed -i "/\b\($2\)\b/d" .queue
+	 	;;
+	 # Menulis pesan komitmen
+	 commit)
+		if [ $2 == '-m' ]; 
+		then
+			echo $3 >> .commit
+		else
+			echo 'Opsi tidak dikenal'
+		fi
+	    ;;
+	 # Melakukan proses pengiriman
+	 push)
+		if [ $2 == 'this' ]; 
+		then
+			syncit
+		else
+			echo 'Opsi tidak dikenal'
+		fi
+	    ;;
+	 # set list
+	 setlist)
+		ls -R ./ > .list 
+	    ;;
+	 # Melihat status file
+     status)
+		  if configIsReady 
+		  then
+			  if isExist .list 
+			  then 
+			  	ls -R ./ > .list2
+			  	
+		      	if diff -ra --color .list .list2
+			  	then
+			  		diff -ra --color .list .list2
+			  	fi
+			  else
+			  	touch .list
+			  	touch .list2
+			  	ls -R ./ > .list
+			  	ls -R ./ > .list2
+			  	if diff -ra --color .list .list2  
+			  	then
+			  		echo 'Semua sudah terbaharui'
+			  	fi
+			  fi
+		  else 
+		  	 printf "Tidak ditemukan file config\n\nSilahkan jalan kan perintah \n\n"
+		  	 printf "${bold}altergit init ${normal}\n\n"
+		  fi
+          ;;
+     # Melalukan inisialisasi
+     init)
+		touch ./.altergitconfig
+		touch ./.queue
+		touch ./.ignore
+		touch ./.commit
+		read -p 'Directory tujuan (wajib diisi) [/home/foo]: ' dirDest
+		dirDest=${dirDest:-/home/foo}
+		echo '#!/bin/bash' > .altergitconfig
+		echo "dirDest='$dirDest'" >> .altergitconfig
+		printf "Menginisialisasi project ini\n"
+	 	;;
+     *)
+          echo "Hai"
+          ;;
+	esac
+}
+
+altergit $1 $2 $3
